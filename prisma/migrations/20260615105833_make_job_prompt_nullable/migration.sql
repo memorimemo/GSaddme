@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "jobs" ALTER COLUMN "prompt" DROP NOT NULL;

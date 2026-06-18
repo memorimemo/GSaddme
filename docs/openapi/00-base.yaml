@@ -1,0 +1,27 @@
+openapi: 3.1.0
+info:
+  title: Galatasaray Image Compositing API
+  version: 1.0.0
+  summary: Asynchronous image compositing API for Galatasaray player templates
+  description: |
+    REST API for issuing client and admin tokens, uploading user photos,
+    moderating content with AWS Rekognition, generating composite images with OpenAI,
+    and tracking asynchronous processing jobs stored in PostgreSQL and S3.
+
+    Standard client flow:
+    1. Exchange the fixed client token for an access token and refresh token.
+    2. Upload a user image and create a background job.
+    3. Poll job status until it is `SUCCEEDED`, `FAILED`, or `REJECTED`.
+    4. Consume the presigned result URL when the job succeeds.
+servers:
+  - url: http://localhost:3013
+    description: Local development
+tags:
+  - name: Health
+    description: Runtime availability endpoints
+  - name: Auth
+    description: Client and admin authentication flows
+  - name: Jobs
+    description: Client-facing asynchronous image generation operations
+  - name: Admin
+    description: Administrative and operational management endpoints

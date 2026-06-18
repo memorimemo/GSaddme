@@ -1,0 +1,73 @@
+paths:
+  /api/v1/auth/token:
+    post:
+      tags: [Auth]
+      summary: Exchange client token for access and refresh tokens
+      operationId: issueClientToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientTokenRequest'
+      responses:
+        '200':
+          description: Client JWT and refresh token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientAccessTokenResponse'
+        '401':
+          description: Invalid client token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh token and issue a new client access token
+      operationId: refreshClientToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New client JWT and rotated refresh token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientAccessTokenResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/auth/admin/token:
+    post:
+      tags: [Auth]
+      summary: Exchange admin bootstrap token for admin JWT
+      operationId: issueAdminToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminTokenRequest'
+      responses:
+        '200':
+          description: Admin JWT issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '401':
+          description: Invalid admin token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'

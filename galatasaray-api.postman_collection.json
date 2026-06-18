@@ -1,0 +1,700 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Galatasaray Compositing API",
+    "description": "Galatasaray Fan Compositing API — staging ortamı test koleksiyonu.\n\n**Başlangıç adımları:**\n1. `Auth — Client / 1. Get Access Token` isteğini çalıştır (access_token ve refresh_token otomatik kaydedilir)\n2. `Players / List Players` ile template listesini al\n3. `Jobs / Create Job` ile multipart form'dan bir fotoğraf yükle (job_id otomatik kaydedilir)\n4. `Jobs / Get Job Status` ile sonucu poll et — status `SUCCEEDED` olunca `resultUrl` alanını al\n\n**Admin işlemler için:**\n`Auth — Admin / Get Admin Token` isteğini çalıştır (admin_access_token otomatik kaydedilir)",
+    "schema": "https://schema.postman.com/collection/json/v2.1.0/draft-07/collection.json",
+    "version": { "major": 1, "minor": 0, "patch": 0 }
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://ec2-3-77-234-1.eu-central-1.compute.amazonaws.com",
+      "type": "string",
+      "description": "API base URL"
+    },
+    {
+      "key": "client_token",
+      "value": "gs_client_token_2ec74003c783de5033fedee841deec7ad97a2d194c72d6bf",
+      "type": "string",
+      "description": "Static client credentials token"
+    },
+    {
+      "key": "admin_token",
+      "value": "gs_admin_token_50baf9f422436a99534522139fe6ed5721f2f16f301fa7f7",
+      "type": "string",
+      "description": "Static admin bootstrap token"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by: Auth — Client → Get Access Token"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by: Auth — Client → Get Access Token"
+    },
+    {
+      "key": "admin_access_token",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by: Auth — Admin → Get Admin Token"
+    },
+    {
+      "key": "job_id",
+      "value": "",
+      "type": "string",
+      "description": "Auto-set by: Jobs → Create Job"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "DB, Redis ve RabbitMQ bağlantılarını kontrol eder. `status: ok` ise tüm servisler sağlıklı."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Overall status is ok', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.status).to.eql('ok');",
+                  "});",
+                  "",
+                  "pm.test('DB is ok', () => {",
+                  "    pm.expect(pm.response.json().checks.db).to.eql('ok');",
+                  "});",
+                  "",
+                  "pm.test('Redis is ok', () => {",
+                  "    pm.expect(pm.response.json().checks.redis).to.eql('ok');",
+                  "});",
+                  "",
+                  "pm.test('RabbitMQ is ok', () => {",
+                  "    const rmq = pm.response.json().checks.rabbitmq;",
+                  "    pm.expect(rmq).to.be.oneOf(['ok', 'degraded']);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Uptime:', body.uptime, 's | DB:', body.checks.db, '| Redis:', body.checks.redis, '| RabbitMQ:', body.checks.rabbitmq);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth — Client",
+      "description": "Client token ile JWT access + refresh token alınır. Access token süresi 1 saattir.",
+      "item": [
+        {
+          "name": "1. Get Access Token",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "token"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientToken\": \"{{client_token}}\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Client token ile access token ve refresh token alır. Test script otomatik olarak `access_token` ve `refresh_token` koleksiyon değişkenlerine kaydeder."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Has accessToken', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "});",
+                  "",
+                  "pm.test('Has refreshToken', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('refreshToken');",
+                  "});",
+                  "",
+                  "pm.test('TokenType is Bearer', () => {",
+                  "    pm.expect(pm.response.json().tokenType).to.eql('Bearer');",
+                  "});",
+                  "",
+                  "// Tokenları koleksiyon değişkenlerine kaydet",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', body.accessToken);",
+                  "pm.collectionVariables.set('refresh_token', body.refreshToken);",
+                  "",
+                  "console.log('✅ access_token kaydedildi | Süre:', body.expiresIn);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "2. Refresh Access Token",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Süresi dolmuş access token'ı refresh token kullanarak yeniler. Yeni `access_token` otomatik kaydedilir."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Has accessToken', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', body.accessToken);",
+                  "",
+                  "console.log('✅ access_token yenilendi | Süre:', body.expiresIn);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔑 Auth — Admin",
+      "description": "Admin bootstrap token ile admin JWT alınır. Admin endpoint'lerine erişmek için gerekli.",
+      "item": [
+        {
+          "name": "Get Admin Token",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/admin/token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "admin", "token"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"adminToken\": \"{{admin_token}}\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "description": "Admin bootstrap token ile admin access token alır. `admin_access_token` değişkenine otomatik kaydedilir."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Has accessToken', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('accessToken');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('admin_access_token', body.accessToken);",
+                  "",
+                  "console.log('✅ admin_access_token kaydedildi | Süre:', body.expiresIn);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "👥 Players",
+      "description": "Aktif oyuncular ve template'lerin listesi. Job oluştururken `slug` ve `key` değerleri buradan alınır.",
+      "item": [
+        {
+          "name": "List Players & Templates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/players",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "players"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "description": "Aktif tüm oyuncuları ve her oyuncunun template'lerini döner. Dönen `slug` → Job'da `playerSlug`, `key` → Job'da `templateKey` olarak kullanılır."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Response is an array', () => {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('At least one player', () => {",
+                  "    pm.expect(pm.response.json().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Each player has templates', () => {",
+                  "    pm.response.json().forEach(p => {",
+                  "        pm.expect(p).to.have.property('slug');",
+                  "        pm.expect(p).to.have.property('templates');",
+                  "        pm.expect(p.templates).to.be.an('array');",
+                  "    });",
+                  "});",
+                  "",
+                  "// Mevcut oyuncuları konsola yaz",
+                  "const players = pm.response.json();",
+                  "console.log('Oyuncular:');",
+                  "players.forEach(p => {",
+                  "    const keys = p.templates.map(t => t.key).join(', ');",
+                  "    console.log(' -', p.slug, '→ template keys:', keys);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💼 Jobs",
+      "description": "Görsel compositing job'larını oluşturur ve sorgular. Akış: Create Job → poll Get Job Status → status SUCCEEDED olunca resultUrl'i kullan.",
+      "item": [
+        {
+          "name": "Create Job",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "playerSlug",
+                  "value": "osimhen",
+                  "type": "text",
+                  "description": "Oyuncu slug'ı — GET /api/v1/players'dan al"
+                },
+                {
+                  "key": "templateKey",
+                  "value": "osimhen:1",
+                  "type": "text",
+                  "description": "Template key — GET /api/v1/players'dan al. Boş bırakılırsa rastgele seçilir."
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": [],
+                  "description": "⚠️ TEK KİŞİ içeren JPEG/PNG/WebP/HEIC fotoğraf seç (max 15MB). Yüz net görünür olmalı."
+                }
+              ]
+            },
+            "description": "Kullanıcı fotoğrafı + oyuncu/template seçimiyle compositing job'u oluşturur. İşlem arka planda (~30sn–3dk) devam eder.\n\n**Önemli:**\n- `image` alanında **tek kişi** içeren bir fotoğraf seçilmeli\n- `playerSlug` ve `templateKey` değerleri `GET /api/v1/players`'dan alınabilir\n\nJob ID `job_id` değişkenine otomatik kaydedilir."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 202 Accepted', () => pm.response.to.have.status(202));",
+                  "",
+                  "pm.test('Has job id', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('id');",
+                  "});",
+                  "",
+                  "pm.test('Initial status is QUEUED', () => {",
+                  "    pm.expect(pm.response.json().status).to.eql('QUEUED');",
+                  "});",
+                  "",
+                  "pm.test('Has playerSlug and templateKey', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('playerSlug');",
+                  "    pm.expect(body).to.have.property('templateKey');",
+                  "});",
+                  "",
+                  "// Job ID'yi koleksiyon değişkenine kaydet",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('job_id', body.id);",
+                  "",
+                  "console.log('✅ Job oluşturuldu | ID:', body.id);",
+                  "console.log('⏳ Get Job Status ile durumu takip edin.');"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs", "{{job_id}}"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "description": "Job durumunu ve sonuç URL'ini döner.\n\n**Status değerleri:**\n- `QUEUED` → sıraya alındı\n- `PROCESSING` → OpenAI'de işleniyor\n- `SUCCEEDED` → tamamlandı, `resultUrl` hazır ✅\n- `REJECTED` → moderasyon reddetti, `rejectionReason` alanına bak\n- `FAILED` → teknik hata, `failureReason` alanına bak\n\n**Polling stratejisi:** İlk 30sn'de her 5sn'de bir, sonrasında her 10sn'de bir çalıştır."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Has status field', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('status');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const status = body.status;",
+                  "",
+                  "console.log('Job ID:', body.id);",
+                  "console.log('Status:', status);",
+                  "",
+                  "if (status === 'SUCCEEDED') {",
+                  "    console.log('✅ TAMAMLANDI! resultUrl:', body.resultUrl);",
+                  "    pm.test('Has resultUrl', () => {",
+                  "        pm.expect(body.resultUrl).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "}",
+                  "",
+                  "if (status === 'REJECTED') {",
+                  "    console.log('❌ REDDEDİLDİ — Sebep:', body.rejectionReason);",
+                  "}",
+                  "",
+                  "if (status === 'FAILED') {",
+                  "    console.log('💥 BAŞARISIZ — Hata:', body.failureReason);",
+                  "}",
+                  "",
+                  "if (['QUEUED', 'PROCESSING'].includes(status)) {",
+                  "    console.log('⏳ Hâlâ işleniyor — birkaç saniye sonra tekrar çalıştırın');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Admin",
+      "description": "Admin endpoint'leri. Önce `Auth — Admin / Get Admin Token` isteğini çalıştırmalısınız.",
+      "item": [
+        {
+          "name": "List Jobs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "jobs"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "FAILED",
+                  "description": "Filtre: QUEUED | PROCESSING | SUCCEEDED | FAILED | REJECTED",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Sayfa numarası",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "description": "Sayfa başına kayıt sayısı",
+                  "disabled": true
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "description": "Tüm job'ları listeler. `status`, `page`, `pageSize` query parametreleri ile filtre uygulanabilir."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Has items array', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('items');",
+                  "    pm.expect(pm.response.json().items).to.be.an('array');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Toplam job:', body.total, '| Bu sayfada:', body.items.length);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Job Detail (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "jobs", "{{job_id}}"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "description": "Belirli bir job'un tam detayını döner. Client endpoint'inden farklı olarak daha fazla alan (events, clientApp vb.) içerir."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const body = pm.response.json();",
+                  "console.log('Job ID:', body.id, '| Status:', body.status);",
+                  "console.log('Events:', body.events?.length ?? 0, 'adet');"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Retry Failed Job",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}/retry",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "jobs", "{{job_id}}", "retry"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "description": "FAILED durumundaki bir job'u tekrar kuyruğa alır. `job_id` değişkeninin doğru olduğundan emin olun."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 or 202', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});",
+                  "",
+                  "console.log('Job retry kuyruğa alındı. Get Job Status ile takip edin.');"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Templates",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/templates",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "templates"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "description": "DB'deki tüm template kayıtlarını döner (admin view — promptHint dahil tüm alanlar)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "console.log('Template sayısı:', pm.response.json().length ?? pm.response.json().items?.length ?? '-');"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Sync Templates from Disk",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/templates/sync",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "templates", "sync"]
+            },
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_access_token}}"
+              }
+            ],
+            "description": "Disk'teki template JSON dosyalarını DB ile senkronize eder. Yeni template eklendiğinde veya JSON güncellendiğinde çalıştırılır."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (body.synced) {",
+                  "    body.synced.forEach(p => {",
+                  "        console.log('Synced:', p.playerSlug, '—', p.templateCount, 'template');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📖 Swagger UI",
+      "item": [
+        {
+          "name": "Open API Docs (JSON)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/docs/openapi.json",
+              "host": ["{{base_url}}"],
+              "path": ["docs", "openapi.json"]
+            },
+            "description": "OpenAPI spec'ini JSON formatında döner. Swagger UI için: {{base_url}}/docs/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test('Is valid OpenAPI', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('openapi');",
+                  "    pm.expect(body).to.have.property('paths');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

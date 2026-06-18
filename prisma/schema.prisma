@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ActorType {
+  CLIENT
+  ADMIN
+}
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REJECTED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+model ClientApp {
+  id            String         @id @default(cuid())
+  slug          String         @unique
+  name          String
+  tokenHash     String
+  isActive      Boolean        @default(true)
+  lastUsedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  jobs          Job[]
+
+  @@map("client_apps")
+}
+
+model RefreshToken {
+  id           String    @id @default(cuid())
+  clientAppId  String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  userAgent    String?
+  ipAddress    String?
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  clientApp    ClientApp @relation(fields: [clientAppId], references: [id], onDelete: Cascade)
+
+  @@index([clientAppId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Player {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  displayName String
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  templates   Template[]
+  jobs        Job[]
+
+  @@map("players")
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  playerId    String
+  key         String   @unique
+  fileName    String
+  filePath    String
+  variantName String
+  mimeType    String
+  checksum    String   @unique
+  width       Int
+  height      Int
+  promptHint  String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  jobs        Job[]
+
+  @@index([playerId, isActive])
+  @@map("templates")
+}
+
+model Job {
+  id               String        @id @default(cuid())
+  clientAppId      String
+  playerId         String
+  templateId       String
+  status           JobStatus     @default(QUEUED)
+  prompt           String?
+  sourceMimeType   String
+  originalFileName String
+  inputImageKey    String
+  normalizedKey    String
+  resultImageKey   String?
+  rejectionReason  String?
+  failureReason    String?
+  moderationLabels Json?
+  faceCount        Int?
+  attemptCount     Int           @default(0)
+  idempotencyKey   String?
+  queuedAt         DateTime      @default(now())
+  startedAt        DateTime?
+  completedAt      DateTime?
+  failedAt         DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  clientApp        ClientApp     @relation(fields: [clientAppId], references: [id], onDelete: Restrict)
+  player           Player        @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  template         Template      @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  events           JobEvent[]
+  outboxEvents     OutboxEvent[]
+
+  @@unique([clientAppId, idempotencyKey])
+  @@index([clientAppId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@map("jobs")
+}
+
+model JobEvent {
+  id        String    @id @default(cuid())
+  jobId     String
+  status    JobStatus
+  message   String
+  meta      Json?
+  createdAt DateTime  @default(now())
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt(sort: Asc)])
+  @@map("job_events")
+}
+
+model OutboxEvent {
+  id          String       @id @default(cuid())
+  topic       String
+  jobId       String?
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  lastError   String?
+  availableAt DateTime     @default(now())
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  job         Job?         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([jobId])
+  @@map("outbox_events")
+}

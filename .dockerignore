@@ -1,0 +1,12 @@
+node_modules
+.env
+.DS_Store
+*.log
+coverage
+dist
+build
+tmp
+test.jpeg
+.claude
+README.md
+prisma/dev.db

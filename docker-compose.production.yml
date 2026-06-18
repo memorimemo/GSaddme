@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: galatasaray-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-galatasaray}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-galatasaray}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-galatasaray} -d ${POSTGRES_DB:-galatasaray}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - galatasaray-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: galatasaray-rabbitmq
+    restart: unless-stopped
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - galatasaray-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: galatasaray-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - galatasaray-net
+
+  api:
+    build: .
+    container_name: galatasaray-api
+    ports:
+      - "80:3000"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - galatasaray-net
+
+  worker:
+    build: .
+    container_name: galatasaray-worker
+    command: node src/workers/job.worker.js
+    env_file: .env
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - galatasaray-net
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+
+networks:
+  galatasaray-net:
+    driver: bridge

@@ -1,0 +1,26 @@
+'use strict';
+
+const JOB_STATUS = {
+  FAILED: 'FAILED',
+  PROCESSING: 'PROCESSING',
+  QUEUED: 'QUEUED',
+  REJECTED: 'REJECTED',
+  SUCCEEDED: 'SUCCEEDED',
+};
+
+const OUTBOX_STATUS = {
+  FAILED: 'FAILED',
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PUBLISHED: 'PUBLISHED',
+};
+
+const OUTBOX_TOPICS = {
+  JOB_QUEUED: 'job.queued',
+};
+
+module.exports = {
+  JOB_STATUS,
+  OUTBOX_STATUS,
+  OUTBOX_TOPICS,
+};

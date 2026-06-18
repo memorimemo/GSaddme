@@ -1,0 +1,409 @@
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: UNAUTHORIZED
+            message:
+              type: string
+              example: Invalid or expired token
+            details:
+              nullable: true
+              description: Optional validation or domain-specific metadata
+
+    ClientTokenRequest:
+      type: object
+      required: [clientToken]
+      properties:
+        clientToken:
+          type: string
+          minLength: 32
+          example: gs_client_token_replace_with_your_token
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 32
+
+    AdminTokenRequest:
+      type: object
+      required: [adminToken]
+      properties:
+        adminToken:
+          type: string
+          minLength: 32
+
+    AccessTokenResponse:
+      type: object
+      required: [accessToken, expiresIn, tokenType]
+      properties:
+        accessToken:
+          type: string
+          description: Bearer JWT
+        expiresIn:
+          type: string
+          example: 1h
+        tokenType:
+          type: string
+          example: Bearer
+
+    ClientAccessTokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/AccessTokenResponse'
+        - type: object
+          required: [refreshToken]
+          properties:
+            refreshToken:
+              type: string
+
+    JobStatus:
+      type: string
+      enum: [QUEUED, PROCESSING, SUCCEEDED, FAILED, REJECTED]
+
+    JobCreateResponse:
+      type: object
+      required: [id, playerSlug, status, templateKey]
+      properties:
+        id:
+          type: string
+          format: uuid
+        playerSlug:
+          type: string
+          example: icardi
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        templateKey:
+          type: string
+          example: icardi:template-6
+
+    ModerationLabel:
+      type: object
+      required: [confidence, name]
+      properties:
+        confidence:
+          type: number
+          format: float
+          example: 96.3
+        name:
+          type: string
+        parentName:
+          type: string
+          nullable: true
+
+    JobEvent:
+      type: object
+      required: [id, jobId, status, message, createdAt]
+      properties:
+        id:
+          type: string
+        jobId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        message:
+          type: string
+        meta:
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Player:
+      type: object
+      required: [id, slug, displayName, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+          example: icardi
+        displayName:
+          type: string
+          example: Icardi
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Template:
+      type: object
+      required:
+        - id
+        - playerId
+        - key
+        - fileName
+        - filePath
+        - variantName
+        - mimeType
+        - checksum
+        - width
+        - height
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        playerId:
+          type: string
+        key:
+          type: string
+          example: icardi:template-6
+        fileName:
+          type: string
+        filePath:
+          type: string
+        variantName:
+          type: string
+        mimeType:
+          type: string
+          example: image/jpeg
+        checksum:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        player:
+          $ref: '#/components/schemas/Player'
+
+    ClientApp:
+      type: object
+      required: [id, slug, name, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Job:
+      type: object
+      required:
+        - id
+        - clientAppId
+        - playerId
+        - templateId
+        - status
+        - sourceMimeType
+        - originalFileName
+        - inputImageKey
+        - normalizedKey
+        - attemptCount
+        - queuedAt
+        - createdAt
+        - updatedAt
+        - events
+        - player
+        - template
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientAppId:
+          type: string
+        playerId:
+          type: string
+        templateId:
+          type: string
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        prompt:
+          type: string
+          nullable: true
+        sourceMimeType:
+          type: string
+        originalFileName:
+          type: string
+        inputImageKey:
+          type: string
+        normalizedKey:
+          type: string
+        resultImageKey:
+          type: string
+          nullable: true
+        resultUrl:
+          type: string
+          format: uri
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+        moderationLabels:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ModerationLabel'
+        faceCount:
+          type: integer
+          nullable: true
+        attemptCount:
+          type: integer
+        queuedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        failedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobEvent'
+        player:
+          $ref: '#/components/schemas/Player'
+        template:
+          $ref: '#/components/schemas/Template'
+        clientApp:
+          $ref: '#/components/schemas/ClientApp'
+
+    AdminJobListResponse:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    TemplateSyncResponse:
+      type: object
+      required: [synced]
+      properties:
+        synced:
+          type: array
+          items:
+            type: object
+            required: [playerId, playerSlug, templateCount]
+            properties:
+              playerId:
+                type: string
+              playerSlug:
+                type: string
+              templateCount:
+                type: integer
+
+    PlayerTemplate:
+      type: object
+      required: [key, variantName, width, height, mimeType]
+      properties:
+        key:
+          type: string
+          example: osimhen:1
+          description: Unique template identifier used in job creation
+        variantName:
+          type: string
+          example: "1"
+        width:
+          type: integer
+          example: 1080
+        height:
+          type: integer
+          example: 1350
+        mimeType:
+          type: string
+          example: image/png
+
+    PlayerWithTemplates:
+      type: object
+      required: [slug, displayName, templates]
+      properties:
+        slug:
+          type: string
+          example: osimhen
+        displayName:
+          type: string
+          example: Victor Osimhen
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlayerTemplate'
+
+    PlayerListResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/PlayerWithTemplates'
+
+    CreateJobRequest:
+      type: object
+      required: [playerSlug, image]
+      properties:
+        playerSlug:
+          type: string
+          example: icardi
+          description: Player template directory slug
+        templateKey:
+          type: string
+          example: icardi:template-6
+          description: Optional explicit template variant key
+        image:
+          type: string
+          format: binary
+          description: Single-person user image file

@@ -1,0 +1,153 @@
+paths:
+  /api/v1/admin/jobs:
+    get:
+      tags: [Admin]
+      summary: List jobs
+      operationId: listAdminJobs
+      security:
+        - bearerAdminAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobStatus'
+      responses:
+        '200':
+          description: Paginated jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminJobListResponse'
+        '401':
+          description: Invalid admin JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/jobs/{jobId}:
+    get:
+      tags: [Admin]
+      summary: Get job detail by ID
+      operationId: getAdminJob
+      security:
+        - bearerAdminAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          description: Invalid admin JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/jobs/{jobId}/retry:
+    post:
+      tags: [Admin]
+      summary: Retry failed or rejected job
+      operationId: retryAdminJob
+      security:
+        - bearerAdminAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Job requeued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          description: Invalid admin JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Job is not retryable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/templates:
+    get:
+      tags: [Admin]
+      summary: List templates
+      operationId: listTemplates
+      security:
+        - bearerAdminAuth: []
+      responses:
+        '200':
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Template'
+        '401':
+          description: Invalid admin JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/admin/templates/sync:
+    post:
+      tags: [Admin]
+      summary: Sync templates from disk
+      operationId: syncTemplates
+      security:
+        - bearerAdminAuth: []
+      responses:
+        '200':
+          description: Template sync summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateSyncResponse'
+        '401':
+          description: Invalid admin JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'

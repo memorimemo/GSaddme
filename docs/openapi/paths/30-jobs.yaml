@@ -1,0 +1,122 @@
+paths:
+  /api/v1/players:
+    get:
+      tags: [Players]
+      summary: List active players with their templates
+      description: Returns all active players and their available template variants. Use the returned `slug` and `templateKey` values when creating a job.
+      operationId: listPlayers
+      security:
+        - bearerClientAuth: []
+      responses:
+        '200':
+          description: Player list with templates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerListResponse'
+              example:
+                - slug: osimhen
+                  displayName: Victor Osimhen
+                  templates:
+                    - key: osimhen:1
+                      variantName: "1"
+                      width: 1080
+                      height: 1080
+                      mimeType: image/png
+                    - key: osimhen:2
+                      variantName: "2"
+                      width: 1080
+                      height: 1350
+                      mimeType: image/png
+                - slug: lucas-torreira
+                  displayName: Lucas Torreira
+                  templates:
+                    - key: lucas-torreira:1
+                      variantName: "1"
+                      width: 1080
+                      height: 1350
+                      mimeType: image/png
+        '401':
+          description: Invalid client JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /api/v1/jobs:
+    post:
+      tags: [Jobs]
+      summary: Create asynchronous image generation job
+      operationId: createJob
+      security:
+        - bearerClientAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+      responses:
+        '202':
+          description: Job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobCreateResponse'
+        '400':
+          description: Validation failure or missing image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid client JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: No active template available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/jobs/{jobId}:
+    get:
+      tags: [Jobs]
+      summary: Get client-owned job detail
+      operationId: getClientJob
+      security:
+        - bearerClientAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          description: Invalid client JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
