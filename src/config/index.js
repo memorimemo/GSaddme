@@ -47,7 +47,7 @@ const envSchema = z.object({
   RABBITMQ_EXCHANGE: z.string().min(1).default('galatasaray.jobs'),
   RABBITMQ_QUEUE: z.string().min(1).default('galatasaray.jobs.image-generate'),
   RABBITMQ_ROUTING_KEY: z.string().min(1).default('jobs.image.generate'),
-  RABBITMQ_PREFETCH: z.coerce.number().int().positive().default(10),
+  RABBITMQ_PREFETCH: z.coerce.number().int().positive().default(30),
   OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(100),
   OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
   OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
@@ -61,7 +61,7 @@ const envSchema = z.object({
 
   CORS_ORIGINS: z.string().min(1, 'CORS_ORIGINS is required'),
 
-  WORKER_MAX_CONCURRENT_JOBS: z.coerce.number().int().positive().default(2),
+  WORKER_MAX_CONCURRENT_JOBS: z.coerce.number().int().positive().default(30),
 });
 
 const parsed = envSchema.safeParse(process.env);
