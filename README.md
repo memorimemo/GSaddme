@@ -390,7 +390,58 @@ Response: oyuncu başına `slug`, `displayName` ve `templates[]` (key, variantNa
 docker build -t galatasaray-api .
 ```
 
-### AWS Deployment (ECS/EKS)
+### Docker Run
+
+Aynı image hem API server hem de Worker için kullanılır:
+
+```bash
+# API Server (varsayılan)
+docker run -p 3000:3000 --env-file .env galatasaray-api
+
+# Worker (CMD override ile)
+docker run --env-file .env galatasaray-api node src/workers/job.worker.js
+```
+
+### AWS ECS Deployment
+
+**ÖNEMLİ:** API ve Worker ayrı task'lar olarak çalıştırılmalıdır!
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   API Task      │────▶│    RabbitMQ     │◀────│   Worker Task   │
+│                 │     │                 │     │                 │
+│ CMD: (default)  │     │                 │     │ CMD: node       │
+│ node server.js  │     │                 │     │ job.worker.js   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+#### ECS Task Definitions
+
+**API Task Definition:**
+```json
+{
+  "containerDefinitions": [{
+    "name": "api",
+    "image": "<ECR_URI>:latest",
+    "portMappings": [{"containerPort": 3000}]
+    // CMD override yok - varsayılan server.js çalışır
+  }]
+}
+```
+
+**Worker Task Definition:**
+```json
+{
+  "containerDefinitions": [{
+    "name": "worker",
+    "image": "<ECR_URI>:latest",
+    "command": ["node", "src/workers/job.worker.js"]
+    // Port mapping yok - HTTP sunmuyor
+  }]
+}
+```
+
+#### IAM Role
 
 Production ortamında AWS credentials `.env` dosyasından değil, IAM role üzerinden sağlanır:
 
@@ -398,9 +449,8 @@ Production ortamında AWS credentials `.env` dosyasından değil, IAM role üzer
    - `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` (bucket için)
    - `rekognition:DetectModerationLabels`
 
-2. **Task/Pod'a Role Atayın**:
+2. **Task'a Role Atayın**:
    - ECS: Task Definition'da `taskRoleArn` belirtin
-   - EKS: Service Account ile IAM role association
 
 3. **Environment Variables** — Sadece şunlar gerekli (AWS credentials hariç):
    ```env
