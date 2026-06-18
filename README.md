@@ -221,46 +221,84 @@ npm run worker
 
 ## Ortam Değişkenleri
 
+### Development vs Production
+
+| Ayar | Development | Production |
+|------|-------------|------------|
+| `NODE_ENV` | `development` | `production` |
+| AWS Credentials | `.env` dosyasından okunur | IAM role üzerinden otomatik (credentials yoksayılır) |
+| OpenAI Image Quality | `medium` (hardcoded) | `medium` (hardcoded) |
+| OpenAI Image Format | `jpeg` (hardcoded) | `jpeg` (hardcoded) |
+
+### Zorunlu Değişkenler
+
 ```env
 # Server
-NODE_ENV=development
+NODE_ENV=development          # development | production
 PORT=3013
 
 # Database
 DATABASE_URL=postgresql://user:pass@localhost:5432/galatasaray
 
 # Auth
-JWT_SECRET=                        # min 64 karakter
-JWT_EXPIRES_IN=1h
-JWT_REFRESH_EXPIRES_IN=30d
-ADMIN_BOOTSTRAP_TOKEN=
-ADMIN_JWT_SECRET=                  # min 64 karakter
-ADMIN_JWT_EXPIRES_IN=15m
+CLIENT_APP_TOKEN=             # min 32 karakter
+JWT_SECRET=                   # min 32 karakter
+ADMIN_BOOTSTRAP_TOKEN=        # min 32 karakter
+ADMIN_JWT_SECRET=             # min 32 karakter
 
 # AWS
 AWS_REGION=eu-central-1
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_S3_BUCKET=
-AWS_PRESIGNED_URL_EXPIRES_IN=900
-AWS_REKOGNITION_MIN_CONFIDENCE=75
+AWS_S3_BUCKET=your-bucket-name
 
 # OpenAI
 OPENAI_API_KEY=
-OPENAI_RESPONSES_MODEL=gpt-5.5
-OPENAI_IMAGE_MODEL=chatgpt-image-latest
-OPENAI_IMAGE_QUALITY=high
-OPENAI_IMAGE_FORMAT=jpeg
-OPENAI_IMAGE_INPUT_FIDELITY=high
-OPENAI_REASONING_EFFORT=high
 
 # Redis
 REDIS_URL=redis://localhost:6379
 
 # RabbitMQ
 RABBITMQ_URL=amqp://guest:guest@localhost:5672
+
+# CORS
+CORS_ORIGINS=*                # Production'da spesifik domain belirtin
+```
+
+### AWS Credentials (Sadece Development)
+
+```env
+# Development ortamında .env dosyasına ekleyin
+# Production'da IAM role kullanılır, bu değişkenler yoksayılır
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=...
+```
+
+### Opsiyonel Değişkenler (Varsayılanlar Mevcut)
+
+```env
+# Auth
+CLIENT_APP_SLUG=default-client-app
+CLIENT_APP_NAME=Default Client App
+JWT_EXPIRES_IN=1h
+JWT_REFRESH_EXPIRES_IN=30d
+ADMIN_JWT_EXPIRES_IN=15m
+
+# AWS
+AWS_PRESIGNED_URL_EXPIRES_IN=900
+AWS_REKOGNITION_MIN_CONFIDENCE=75
+
+# OpenAI (model ve reasoning ayarları)
+OPENAI_RESPONSES_MODEL=gpt-5.5
+OPENAI_IMAGE_MODEL=chatgpt-image-latest
+OPENAI_IMAGE_SIZE=auto
+OPENAI_IMAGE_BACKGROUND=opaque
+OPENAI_IMAGE_INPUT_FIDELITY=high
+OPENAI_REASONING_EFFORT=high
+
+# RabbitMQ
 RABBITMQ_EXCHANGE=galatasaray.jobs
 RABBITMQ_QUEUE=galatasaray.jobs.image-generate
+RABBITMQ_ROUTING_KEY=jobs.image.generate
+RABBITMQ_PREFETCH=10
 OUTBOX_BATCH_SIZE=100
 OUTBOX_POLL_INTERVAL_MS=2000
 OUTBOX_MAX_ATTEMPTS=5
@@ -268,11 +306,23 @@ OUTBOX_MAX_ATTEMPTS=5
 # Rate Limit
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX=300
-CORS_ORIGINS=*
 
 # Worker
 WORKER_MAX_CONCURRENT_JOBS=2
+
+# Uploads
+MAX_UPLOAD_BYTES=15728640
+MAX_IMAGE_DIMENSION=2048
 ```
+
+### Hardcoded Değerler
+
+Aşağıdaki değerler kod içinde sabitlenmiştir ve ortam değişkeniyle değiştirilemez:
+
+| Ayar | Değer | Açıklama |
+|------|-------|----------|
+| `OPENAI_IMAGE_QUALITY` | `medium` | OpenAI görsel kalitesi |
+| `OPENAI_IMAGE_FORMAT` | `jpeg` | Çıktı görsel formatı |
 
 ---
 
@@ -329,6 +379,46 @@ Response: oyuncu başına `slug`, `displayName` ve `templates[]` (key, variantNa
 | `npm run db:migrate:prod` | Production migration (deploy) |
 | `npm run db:generate` | Prisma client generate et |
 | `npm run db:studio` | Prisma Studio aç |
+
+---
+
+## Deployment
+
+### Docker Build
+
+```bash
+docker build -t galatasaray-api .
+```
+
+### AWS Deployment (ECS/EKS)
+
+Production ortamında AWS credentials `.env` dosyasından değil, IAM role üzerinden sağlanır:
+
+1. **IAM Role Oluşturun** — S3 ve Rekognition erişimi için gerekli policy'leri ekleyin:
+   - `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` (bucket için)
+   - `rekognition:DetectModerationLabels`
+
+2. **Task/Pod'a Role Atayın**:
+   - ECS: Task Definition'da `taskRoleArn` belirtin
+   - EKS: Service Account ile IAM role association
+
+3. **Environment Variables** — Sadece şunlar gerekli (AWS credentials hariç):
+   ```env
+   NODE_ENV=production
+   AWS_REGION=eu-central-1
+   AWS_S3_BUCKET=your-bucket-name
+   # ... diğer zorunlu değişkenler
+   ```
+
+### CI/CD (GitHub Actions)
+
+`staging` branch'ine push yapıldığında otomatik olarak:
+1. Docker image build edilir
+2. AWS ECR'a push edilir (`nouo-prod-gs-api` repository)
+
+**Gerekli GitHub Secrets:**
+- `AWS_ACCESS_KEY_ID` — ECR push için
+- `AWS_SECRET_ACCESS_KEY` — ECR push için
 
 ---
 

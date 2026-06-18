@@ -22,8 +22,9 @@ const envSchema = z.object({
   ADMIN_JWT_EXPIRES_IN: z.string().default('15m'),
 
   AWS_REGION: z.string().min(1, 'AWS_REGION is required'),
-  AWS_ACCESS_KEY_ID: z.string().min(1, 'AWS_ACCESS_KEY_ID cannot be empty'),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1, 'AWS_SECRET_ACCESS_KEY cannot be empty'),
+  // AWS credentials are optional - when running on AWS (ECS/EKS/EC2), IAM roles provide credentials automatically
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_S3_BUCKET: z.string().min(1, 'AWS_S3_BUCKET cannot be empty'),
   AWS_PRESIGNED_URL_EXPIRES_IN: z.coerce.number().int().positive().default(900),
   AWS_REKOGNITION_MIN_CONFIDENCE: z.coerce.number().min(0).max(100).default(75),
@@ -34,8 +35,6 @@ const envSchema = z.object({
   // Image generation tool model — chatgpt-image-latest matches ChatGPT Pro quality
   OPENAI_IMAGE_MODEL: z.string().min(1).default('chatgpt-image-latest'),
   OPENAI_IMAGE_SIZE: z.string().default('auto'),
-  OPENAI_IMAGE_QUALITY: z.string().default('high'),
-  OPENAI_IMAGE_FORMAT: z.string().default('jpeg'),
   OPENAI_IMAGE_BACKGROUND: z.string().default('opaque'),
   // input_fidelity: 'high' = preserve facial features from reference images
   OPENAI_IMAGE_INPUT_FIDELITY: z.enum(['high', 'low']).default('high'),
@@ -130,6 +129,7 @@ module.exports = {
   },
   aws: {
     region: env.AWS_REGION,
+    // Credentials are optional - AWS SDK uses default credential chain (IAM roles, env vars, etc.)
     accessKeyId: env.AWS_ACCESS_KEY_ID,
     secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
     s3Bucket: env.AWS_S3_BUCKET,
@@ -142,8 +142,8 @@ module.exports = {
     image: {
       model: env.OPENAI_IMAGE_MODEL,
       size: env.OPENAI_IMAGE_SIZE,
-      quality: env.OPENAI_IMAGE_QUALITY,
-      format: env.OPENAI_IMAGE_FORMAT,
+      quality: 'medium', // Hardcoded default
+      format: 'jpeg',    // Hardcoded default
       background: env.OPENAI_IMAGE_BACKGROUND,
       inputFidelity: env.OPENAI_IMAGE_INPUT_FIDELITY,
     },
