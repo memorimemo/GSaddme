@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: eu-central-1
-  ECR_REPOSITORY: galatasaray-api
+  ECR_REPOSITORY: nouo-prod-gs-api
 
 jobs:
   build-and-push:
