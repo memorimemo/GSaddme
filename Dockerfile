@@ -42,6 +42,10 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Health check for ECS task health monitoring
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+
 # Default: API server
 # Override with: docker run <image> node src/workers/job.worker.js
 CMD ["node", "src/server.js"]
