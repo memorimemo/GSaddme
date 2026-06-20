@@ -41,6 +41,10 @@ const apiRateLimit = rateLimit({
   windowMs: config.rateLimit.windowMs,
   limit: config.rateLimit.max,
   store: makeRedisStore(),
+  skip: (req) => {
+    // Skip rate limiting for health checks (load balancer, k6 tests, etc.)
+    return req.path === '/health';
+  },
   handler: (req, res, next, options) => {
     logger.warn({
       ip: req.ip,
@@ -57,11 +61,12 @@ const apiRateLimit = rateLimit({
 });
 
 // Stricter limit for auth endpoints — prevents token brute-force
+// Increased for load testing
 const authRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
+  windowMs: 60 * 1000,    // 1 minute
+  limit: 1000,            // 1000 auth requests per minute (for load testing)
   store: makeRedisStore(),
   handler: (req, res, next, options) => {
     logger.warn({

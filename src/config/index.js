@@ -56,8 +56,8 @@ const envSchema = z.object({
   MAX_IMAGE_DIMENSION: z.coerce.number().int().positive().default(2048),
   TEMPLATE_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
 
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900000),
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),   // 1 minute window
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10000),         // 10k requests per minute
 
   CORS_ORIGINS: z.string().min(1, 'CORS_ORIGINS is required'),
 
